@@ -6,10 +6,20 @@ class Entity
         components.each do |component, fields|
             Component[component][e.id] = fields
         end
+        e
+    end
+
+    def method_missing(name, *args)
+        super(name,*args) if args != []
+        Component[name][id]
+    end
+
+    def ==(other)
+        other.is_a? Entity && other.id == id
     end
 
     private
-    def initialize(id)
+    def initialize(id = object_id)
         @id = id
     end
 end
@@ -17,32 +27,29 @@ end
 class Component
     attr_accessor :id, :fields
 
-    def self.create(id, *fields, &block)
-        register Component.new(id, fields, &block)
+    def self.create(id, *fields)
+        register Component.new(id, *fields)
     end
 
     def self.[](id)
         @@components[id]
     end
 
-    def []=(id, e)
-        @entities[id] = e
+    def []=(id, fields)
+        @entities[id] = fields if fields.is_a? @struct
+        @entities[id] = @struct.new(*fields.values_at(*@fields))
     end
 
     def [](id)
         @entities[id]
     end
 
-    def run
-        @block[]
-    end
-
     private
-    def initialize(id, *fields, &block)
+    def initialize(id, *fields)
         @id = id
         @fields = fields
         @entities = {}
-        @block = block
+        @struct = Struct.new *fields
     end
 
     @@components ||= {}
@@ -50,9 +57,3 @@ class Component
         @@components[component.id] = component
     end
 end
-
-Component.create(:physics, :position, :velocity, :weight)
-
-rock = Entity.create(:rock, :physics => {:position => [0,0], :velocity => 0, :weight => 0.5} )
-
-Component[:physics][:rock][:position] # 0,0
